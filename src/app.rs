@@ -663,6 +663,7 @@ pub fn build_app() -> App<'static> {
         )
         .arg(
             Arg::new("pattern")
+                .required(false)
             .allow_invalid_utf8(true)
             .help(
                 "the search pattern (a regular expression, unless '--glob' is used; optional)",
@@ -720,7 +721,11 @@ pub fn build_app() -> App<'static> {
                     "By default, relative paths are prefixed with './' when the output goes to a non \
                      interactive terminal (TTY). Use this flag to disable this behaviour."
                 )
-        );
+        )
+        .arg(Arg::new("positional-exec")
+            .last(true)
+            .value_name("cmd"))
+        ;
 
     if cfg!(unix) {
         app = app.arg(

@@ -153,9 +153,10 @@ fn extract_search_paths(
                          .collect()
                  },
         )
-        .or_else(|| match matches.value_of("pattern") {
+        .or_else(|| match matches.value_of_os("pattern") {
             Some(s) => {
-                let p = PathBuf::from(s);
+                let s = s.to_string_lossy();
+                let p = PathBuf::from(s.as_ref());
                 if s.contains(std::path::MAIN_SEPARATOR) && p.is_dir() {
                     Some(vec![p])
                 } else {
@@ -433,6 +434,14 @@ fn extract_command(
         });
 
         Some(res)
+    })
+    .or_else(|| {
+        matches.values_of("positional-exec").map(|args| {
+            Ok(CommandTemplate::new(
+                args,
+                path_separator.map(str::to_string),
+            ))
+        })
     })
     .transpose()
 }
