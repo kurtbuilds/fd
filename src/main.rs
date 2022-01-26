@@ -120,6 +120,11 @@ fn extract_search_pattern<'a>(matches: &'a clap::ArgMatches) -> Result<&'a str> 
                 .ok_or_else(|| anyhow!("The search pattern includes invalid UTF-8 sequences."))
         })
         .transpose()?
+        .map(|s| if s.contains(std::path::MAIN_SEPARATOR) && Path::new(s).is_dir() {
+            "."
+        } else {
+            s
+        })
         .unwrap_or("");
     Ok(pattern)
 }
@@ -131,24 +136,35 @@ fn extract_search_paths(
     let mut search_paths = matches
         .values_of_os("path")
         .or_else(|| matches.values_of_os("search-path"))
-        .map_or_else(
-            || vec![current_directory.to_path_buf()],
-            |paths| {
-                paths
-                    .filter_map(|path| {
-                        let path_buffer = PathBuf::from(path);
-                        if filesystem::is_existing_directory(&path_buffer) {
-                            Some(path_buffer)
-                        } else {
-                            print_error(format!(
-                                "Search path '{}' is not a directory.",
-                                path_buffer.to_string_lossy()
-                            ));
-                            None
-                        }
-                    })
-                    .collect()
-            },
+        .map(|paths| {
+                     paths
+                         .filter_map(|path| {
+                             let path_buffer = PathBuf::from(path);
+                             if filesystem::is_existing_directory(&path_buffer) {
+                                 Some(path_buffer)
+                             } else {
+                                 print_error(format!(
+                                     "Search path '{}' is not a directory.",
+                                     path_buffer.to_string_lossy()
+                                 ));
+                                 None
+                             }
+                         })
+                         .collect()
+                 },
+        )
+        .or_else(|| match matches.value_of("pattern") {
+            Some(s) => {
+                let p = PathBuf::from(s);
+                if s.contains(std::path::MAIN_SEPARATOR) && p.is_dir() {
+                    Some(vec![p])
+                } else {
+                    None
+                }
+            }
+            None => None,
+        })
+        .unwrap_or_else(|| vec![current_directory.to_path_buf()],
         );
     if search_paths.is_empty() {
         return Err(anyhow!("No valid search paths given."));
